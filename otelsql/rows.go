@@ -2,6 +2,7 @@ package otelsql
 
 import (
 	"database/sql/driver"
+
 	"go.opentelemetry.io/otel/trace"
 )
 
