@@ -33,7 +33,7 @@ func (c *countableRows) Close() error {
 		c.span.RecordError(err)
 	}
 
-	c.span.SetAttributes(dbRowsUnmarshalled.Int(c.count))
+	c.span.SetAttributes(dbRowsScanned.Int(c.count))
 
 	return err
 }

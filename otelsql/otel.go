@@ -18,8 +18,8 @@ import (
 const instrumName = "github.com/uptrace/opentelemetry-go-extra/otelsql"
 
 var (
-	dbRowsAffected     = attribute.Key("db.rows_affected")
-	dbRowsUnmarshalled = attribute.Key("db.rows_scanned")
+	dbRowsAffected = attribute.Key("db.rows_affected")
+	dbRowsScanned  = attribute.Key("db.rows_scanned")
 )
 
 type config struct {
