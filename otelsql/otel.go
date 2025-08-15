@@ -147,7 +147,7 @@ func WithTracerProvider(tracerProvider trace.TracerProvider) Option {
 	}
 }
 
-// WithAttributes configures attributes that are used to create a span.
+// WithAttributes configures attributes that are used to create a closeSpan.
 func WithAttributes(attrs ...attribute.KeyValue) Option {
 	return func(c *config) {
 		c.attrs = append(c.attrs, attrs...)

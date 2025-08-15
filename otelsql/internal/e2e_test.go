@@ -110,6 +110,7 @@ func TestConn(t *testing.T) {
 					{name: "db.Prepare", stmt: "SELECT 1"},
 					{name: "stmt.Exec", stmt: "SELECT 1"},
 					{name: "stmt.Query", stmt: "SELECT 1"},
+					{name: "rows.Close", stmt: "SELECT 1"},
 				}
 				for i, wanted := range wanted {
 					span := spans[i]
