@@ -24,15 +24,17 @@ func (c *countableRows) Columns() []string {
 }
 
 func (c *countableRows) Close() error {
-	c.span.SetAttributes(dbRowsMarshalled.Int(c.count))
-	c.span.End()
+	defer func() {
+		c.span.SetAttributes(dbRowsUnmarshalled.Int(c.count))
+		c.span.End()
+	}()
 
 	return c.rows.Close()
 }
 
 func (c *countableRows) Next(dest []driver.Value) error {
 	err := c.rows.Next(dest)
-	if err != nil {
+	if err == nil {
 		c.count++
 	}
 	return err

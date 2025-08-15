@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"go.opentelemetry.io/otel/codes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,10 +16,12 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
-	"go.opentelemetry.io/otel/codes"
 )
 
-var dbRowsAffected = attribute.Key("db.rows_affected")
+var (
+	dbRowsAffected     = attribute.Key("db.rows_affected")
+	dbRowsUnmarshalled = attribute.Key("db.rows_unmarshalled")
+)
 
 type Test struct {
 	do      func(ctx context.Context, db *sql.DB)
@@ -70,9 +73,10 @@ func TestConn(t *testing.T) {
 				require.Equal(t, 1, num)
 			},
 			require: func(t *testing.T, spans []sdktrace.ReadOnlySpan) {
-				require.Equal(t, 2, len(spans))
+				require.Equal(t, 3, len(spans))
 				require.Equal(t, "db.Connect", spans[0].Name())
 				require.Equal(t, "db.Query", spans[1].Name())
+				require.Equal(t, "rows.Close", spans[2].Name())
 
 				span := spans[1]
 				require.Equal(t, "db.Query", span.Name())
@@ -136,7 +140,7 @@ func TestConn(t *testing.T) {
 				require.NoError(t, err)
 			},
 			require: func(t *testing.T, spans []sdktrace.ReadOnlySpan) {
-				require.Equal(t, 5, len(spans))
+				require.Equal(t, 6, len(spans))
 
 				wanted := []struct {
 					name string
@@ -146,6 +150,7 @@ func TestConn(t *testing.T) {
 					{name: "db.Begin", stmt: ""},
 					{name: "db.Exec", stmt: "SELECT 1"},
 					{name: "db.Query", stmt: "SELECT 1"},
+					{name: "rows.Close", stmt: "SELECT 1"},
 					{name: "tx.Rollback", stmt: ""},
 				}
 				for i, wanted := range wanted {
@@ -192,6 +197,43 @@ func TestConn(t *testing.T) {
 				message, ok := e[semconv.ExceptionMessageKey]
 				require.True(t, ok)
 				require.Equal(t, "SQL logic error: no such table: ABC (1)", message.AsString())
+			},
+		},
+		{
+			do: func(ctx context.Context, db *sql.DB) {
+				rows, err := db.QueryContext(ctx, "SELECT x.column1 as name FROM (VALUES ('John'), ('Alex')) AS x")
+				require.NoError(t, err)
+
+				i := 0
+				for rows.Next() {
+					i++
+					name := ""
+					err = rows.Scan(&name)
+					require.NoError(t, err)
+				}
+
+				require.Equal(t, 2, i)
+				require.NoError(t, rows.Close())
+			},
+			require: func(t *testing.T, spans []sdktrace.ReadOnlySpan) {
+				require.Equal(t, 3, len(spans))
+				require.Equal(t, "db.Connect", spans[0].Name())
+				require.Equal(t, "db.Query", spans[1].Name())
+
+				span := spans[2]
+				require.Equal(t, "rows.Close", span.Name())
+
+				m := attrMap(span.Attributes())
+
+				stmt, ok := m[semconv.DBStatementKey]
+				require.True(t, ok)
+				require.Equal(t, "SELECT x.column1 as name FROM (VALUES ('John'), ('Alex')) AS x", stmt.AsString())
+
+				fmt.Println(m)
+
+				rows, ok := m[dbRowsUnmarshalled]
+				require.True(t, ok)
+				require.Equal(t, int64(2), rows.AsInt64())
 			},
 		},
 	}
