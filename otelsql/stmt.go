@@ -114,7 +114,7 @@ func (s *otelStmt) createQueryCtxFunc(stmt driver.Stmt) stmtQueryCtxFunc {
 				var err error
 				rows, err = fn(ctx, args)
 				if err == nil {
-					_, closeRowsSpan := s.instrum.createSpan(ctx, "rows.Close", s.query)
+					_, closeRowsSpan := s.instrum.createSpan(ctx, "rows", s.query)
 					rows = newCountableRows(rows, closeRowsSpan)
 				}
 				return err

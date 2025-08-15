@@ -20,7 +20,7 @@ import (
 
 var (
 	dbRowsAffected     = attribute.Key("db.rows_affected")
-	dbRowsUnmarshalled = attribute.Key("db.rows_unmarshalled")
+	dbRowsUnmarshalled = attribute.Key("db.rows_scanned")
 )
 
 type Test struct {
@@ -76,7 +76,7 @@ func TestConn(t *testing.T) {
 				require.Equal(t, 3, len(spans))
 				require.Equal(t, "db.Connect", spans[0].Name())
 				require.Equal(t, "db.Query", spans[1].Name())
-				require.Equal(t, "rows.Close", spans[2].Name())
+				require.Equal(t, "rows", spans[2].Name())
 
 				span := spans[1]
 				require.Equal(t, "db.Query", span.Name())
@@ -110,7 +110,7 @@ func TestConn(t *testing.T) {
 					{name: "db.Prepare", stmt: "SELECT 1"},
 					{name: "stmt.Exec", stmt: "SELECT 1"},
 					{name: "stmt.Query", stmt: "SELECT 1"},
-					{name: "rows.Close", stmt: "SELECT 1"},
+					{name: "rows", stmt: "SELECT 1"},
 				}
 				for i, wanted := range wanted {
 					span := spans[i]
@@ -151,7 +151,7 @@ func TestConn(t *testing.T) {
 					{name: "db.Begin", stmt: ""},
 					{name: "db.Exec", stmt: "SELECT 1"},
 					{name: "db.Query", stmt: "SELECT 1"},
-					{name: "rows.Close", stmt: "SELECT 1"},
+					{name: "rows", stmt: "SELECT 1"},
 					{name: "tx.Rollback", stmt: ""},
 				}
 				for i, wanted := range wanted {
@@ -222,15 +222,17 @@ func TestConn(t *testing.T) {
 				require.Equal(t, "db.Query", spans[1].Name())
 
 				span := spans[2]
-				require.Equal(t, "rows.Close", span.Name())
+				require.Equal(t, "rows", span.Name())
+
+				rowsEvents := span.Events()
+				require.Equal(t, 1, len(rowsEvents))
+				require.Equal(t, "Close", rowsEvents[0].Name)
 
 				m := attrMap(span.Attributes())
 
 				stmt, ok := m[semconv.DBStatementKey]
 				require.True(t, ok)
 				require.Equal(t, "SELECT x.column1 as name FROM (VALUES ('John'), ('Alex')) AS x", stmt.AsString())
-
-				fmt.Println(m)
 
 				rows, ok := m[dbRowsUnmarshalled]
 				require.True(t, ok)

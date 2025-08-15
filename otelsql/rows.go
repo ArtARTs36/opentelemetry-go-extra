@@ -7,17 +7,17 @@ import (
 )
 
 type countableRows struct {
-	rows      driver.Rows
-	closeSpan trace.Span
+	rows driver.Rows
+	span trace.Span
 
 	count int
 }
 
 func newCountableRows(
 	rows driver.Rows,
-	closeSpan trace.Span,
+	span trace.Span,
 ) *countableRows {
-	return &countableRows{rows: rows, closeSpan: closeSpan}
+	return &countableRows{rows: rows, span: span}
 }
 
 func (c *countableRows) Columns() []string {
@@ -25,12 +25,17 @@ func (c *countableRows) Columns() []string {
 }
 
 func (c *countableRows) Close() error {
-	defer func() {
-		c.closeSpan.SetAttributes(dbRowsUnmarshalled.Int(c.count))
-		c.closeSpan.End()
-	}()
+	defer c.span.End()
 
-	return c.rows.Close()
+	err := c.rows.Close()
+	c.span.AddEvent("Close")
+	if err != nil {
+		c.span.RecordError(err)
+	}
+
+	c.span.SetAttributes(dbRowsUnmarshalled.Int(c.count))
+
+	return err
 }
 
 func (c *countableRows) Next(dest []driver.Value) error {

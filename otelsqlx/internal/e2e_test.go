@@ -38,5 +38,5 @@ func TestE2E(t *testing.T) {
 	require.Equal(t, 3, len(spans))
 	require.Equal(t, "db.Connect", spans[0].Name())
 	require.Equal(t, "db.Query", spans[1].Name())
-	require.Equal(t, "rows.Close", spans[2].Name())
+	require.Equal(t, "rows", spans[2].Name())
 }
